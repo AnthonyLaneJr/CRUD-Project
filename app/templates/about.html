@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+
+{% block title %}About{% endblock title %}
+
+{% block content %}
+<h1>About User Sys</h1>
+    {% if content["up"] %}
+        <p>The server is up and running!</p>
+        <p>You are connected to the version: {{ content["version"] }}.</p>
+        <br><br>
+        <h3>About the Developer</h3>
+        <p>Anthony is currently a Personal Trainer looking to make a career field switch. This is his first Python project completed using Ubuntu.</p>
+    {% else %}
+        <p>The system is down for maintenance :(</p>
+    {% endif %}
+{% endblock content %}

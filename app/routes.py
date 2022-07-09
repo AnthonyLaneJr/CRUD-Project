@@ -1,108 +1,72 @@
-from flask import(
+from flask import (
     Flask,
-    request
+    render_template,
 )
 
-from datetime import datetime
-from app.database import user, reports
+import requests
 
+BACKEND_URL = "http://127.0.0.1:5000"
 
 
 app = Flask(__name__)
 
-VERSION = "1.0.0"
+
+@app.get("/")
+def index():
+    return render_template("index.html")
 
 
-@app.get("/ping")
-def ping():
+@app.get("/about")
+def about():
     out = {
-        "status":"ok",
-        "message":"pong"
+        "up": False
     }
-    return out
-
-
-@app.get("/version")
-def get_version():
-    out = {
-        "status":"ok",
-        "verison":VERSION,
-        "server_time": datetime.now().strftime("%F %H:%M:%S")
-    }
-    return out
-
+    ping_url = "%s/%s" % (BACKEND_URL, "ping")
+    up = requests.get(ping_url)
+    if up.status_code == 200:
+        out["up"] = True
+        version_url = "%s/%s" % (BACKEND_URL, "version")
+        version_response = requests.get(version_url)
+        version_json = version_response.json()
+        out["version"] = version_json.get("version")
+    return render_template("about.html", content=out)
 
 @app.get("/users")
-def get_all_users():
-    user_list = user.scan()
-    out = {
-        "status":"ok",
-        "users": user_list
-    }
-    return out
-
+def users():
+    user_url = "%s/%s" % (BACKEND_URL, "users")
+    response = requests.get(user_url)
+    if response.status_code == 200:
+        response_json = response.json()
+        user_list = response_json.get("users")
+        return render_template("user_list.html", users=user_list)
+    else:
+        return render_template("error.html")
 
 @app.get("/users/<int:pk>")
-def get_user_by_id(pk):
-    record = user.select_by_id(pk)
-    out = {
-        "status":"ok",
-        "user":record
-    }
-    return out
-
-@app.post("/users")
-def create_user():
-    user_data = request.json  # request context object
-    user.insert(user_data)
-    return "",204
-
-
-@app.put("/users/<int:pk>")
-def update_user(pk):
-    user_data = request.json
-    user.update(user_data, pk)
-    return "",204
-
-
-@app.delete("/users/<int:pk>")
 def delete_user(pk):
-    user.deactivate(pk)
-    return "", 204
+    delete_url = "%s/%s" % (BACKEND_URL, f"users/{pk}")
+    response = requests.delete(delete_url)
+    if response.status_code == 204:
+        return render_template("delete.html", userID=pk)
+    else:
+        return render_template("error.html")
 
-# ----- Vehicle Section -----    
+@app.get("/users/update")
+def update_user():
+    update_url = "%s/%s" % (BACKEND_URL, "users")
+    response = requests.put(update_url)
+    if response.status_code == 204:
+        return render_template("update.html")
+    else:
+        return render_template("error.html")
 
-@app.get("/reports/cars")
-def users_and_vehicles():
-    vehicle_report = reports.scan()
-    out = {
-        "status":"ok",
-        "users": vehicle_report
-    }
-    return out
+@app.get("/users/create")
+def create_user():
+    create_url = "%s/%s" % (BACKEND_URL, "users")
+    response = requests.post(create_url)
+    if response.status_code == 204:
+        return render_template("create.html")
+    else:
+        return render_template("error.html")
 
-@app.get("/reports/cars/<int:pk>")
-def get_vehicle_by_id(pk):
-    record = reports.select_vehicle_by_id(pk)
-    out = {
-        "status":"ok",
-        "Vehicle":record
-    }
-    return out
-
-@app.post("/reports/cars")
-def create_vehicle():
-    vehicle_data = request.json  # request context object
-    reports.insert_vehicle(vehicle_data)
-    return "",204    
-
-@app.put("/reports/cars/<int:pk>")
-def update_reports(pk):
-    reports_data = request.json
-    reports.update(reports_data, pk)
-    return "",204
-
-@app.delete("/reports/cars/<int:pk>")
-def delete_vehicle(pk):
-    reports.deactivate_vehicle(pk)
-    return "", 204
+#request.form
