@@ -1,110 +1,81 @@
-from crypt import methods
-from pickle import GET
-from flask import(
+from xml.dom.minidom import Document
+from flask import (
     Flask,
-    request,
+    render_template,
+    json,
 )
 
-from datetime import datetime
-from app.database import user, reports
+import requests
 
+BACKEND_URL = "http://127.0.0.1:5000"
 
 
 app = Flask(__name__)
 
-VERSION = "1.0.0"
+
+@app.get("/")
+def index():
+    return render_template("index.html")
 
 
-@app.route("/ping", methods=['GET'])
-def ping():
+@app.get("/about")
+def about():
     out = {
-        "status":"ok",
-        "message":"pong"
+        "up": False
     }
-    return out
+    ping_url = "%s/%s" % (BACKEND_URL, "ping")
+    up = requests.get(ping_url)
+    if up.status_code == 200:
+        out["up"] = True
+        version_url = "%s/%s" % (BACKEND_URL, "version")
+        version_response = requests.get(version_url)
+        version_json = version_response.json()
+        out["version"] = version_json.get("version")
+    return render_template("about.html", content=out)
 
+@app.get("/users")
+def users():
+    user_url = "%s/%s" % (BACKEND_URL, "users")
+    response = requests.get(user_url)
+    if response.status_code == 200:
+        response_json = response.json()
+        user_list = response_json.get("users")
+        return render_template("user_list.html", users=user_list)
+    else:
+        return render_template("error.html")
 
-@app.route("/version", methods=['GET'])
-def get_version():
-    out = {
-        "status":"ok",
-        "verison":VERSION,
-        "server_time": datetime.now().strftime("%F %H:%M:%S")
-    }
-    return out
-
-
-@app.route("/users", methods=['GET'])
-def get_all_users():
-    user_list = user.scan()
-    out = {
-        "status":"ok",
-        "users": user_list
-    }
-    return out
-
-
-@app.route("/users/<int:pk>", methods=['GET'])
-def get_user_by_id(pk):
-    record = user.select_by_id(pk)
-    out = {
-        "status":"ok",
-        "user":record
-    }
-    return out
-
-@app.route("/users", methods=['POST'])
-def create_user():
-    user_data = request.json  # request context object
-    user.insert(user_data)
-    return "",204
-
-
-@app.route("/users/<int:pk>", methods=['POST'])
-def update_user(pk):
-    user_data = request.json
-    user.update(user_data, pk)
-    return "",204
-
-
-@app.route("/users/<int:pk>", methods=['DELETE'])
+@app.get("/users/<int:pk>")
 def delete_user(pk):
-    user.deactivate(pk)
-    return "", 204
+    delete_url = "%s/%s" % (BACKEND_URL, f"users/{pk}")
+    response = requests.delete(delete_url)
+    if response.status_code == 204:
+        return render_template("delete.html", userID=pk)
+    else:
+        return render_template("error.html")
 
-# ----- Vehicle Section -----    
+@app.get("/users/update")
+def update_user():
+    update_url = "%s/%s" % (BACKEND_URL, "users")
+    # response = requests.put(update_url)
+    return render_template("update.html")
 
-@app.route("/reports/cars", methods=['GET'])
-def users_and_vehicles():
-    vehicle_report = reports.scan()
-    out = {
-        "status":"ok",
-        "users": vehicle_report
-    }
-    return out
+@app.route("/users/create", methods=['GET','POST'])
+def create_user():
+    create_user_url = "%s/%s" % (BACKEND_URL, "users")
+    response = requests.post(create_user_url)
+    return render_template("create.html")
 
-@app.route("/reports/cars/<int:pk>", methods=['GET'])
-def get_vehicle_by_id(pk):
-    record = reports.select_vehicle_by_id(pk)
-    out = {
-        "status":"ok",
-        "Vehicle":record
-    }
-    return out
 
-@app.route("/reports/cars", methods=['POST'])
-def create_vehicle():
-    vehicle_data = request.json  # request context object
-    reports.insert_vehicle(vehicle_data)
-    return "",204    
 
-@app.route("/reports/cars/<int:pk>", methods=['PUT'])
-def update_reports(pk):
-    reports_data = request.json
-    reports.update(reports_data, pk)
-    return "",204
 
-@app.route("/reports/cars/<int:pk>", methods=['DELETE'])
-def delete_vehicle(pk):
-    reports.deactivate_vehicle(pk)
-    return "", 204
+@app.route("/create/request", methods=['GET','POST'])
+def send_user_create_request():
+    send_user_create_request = "%s/%s" % (BACKEND_URL, "users")
+    response = requests.post("http://127.0.0.1:5000/users")
+    if response.status_code == 204:
+        return render_template("create.html")
+    
+    
+
+
+#request.form
